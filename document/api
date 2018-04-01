@@ -1,0 +1,28 @@
+1.Runtime.getRuntime().addShutdownHook()
+	语句：Runtime.getRuntime().addShutdownHook(new Thread(() -> System.out.println("asdfasdf")));
+	描述：在jvm中增加一个关闭的钩子，当jvm关闭的时候，会执行系统中已经设置的所有通过方法addShutdownHook添加的钩子，当系统执行完这些钩子后，jvm才会关闭。
+2.Runtime.getRuntime().availableProcessors()
+	语句：Runtime.getRuntime().availableProcessors() << 1
+	描述：向 Java 虚拟机返回可用处理器的数目
+3.ServiceLoader.load(clazz);
+	语句：ServiceLoader<Object> = ServiceLoader.load(clazz);
+	描述：一种动态替换发现的机制， 举个例子来说， 有个接口，想运行时动态的给它添加实现，你只需要添加一个实现。具体是在JAR包的"src/META-INF/services/"目录下建立一个文件，文件名是接口的全限定名，文件的内容可以有多行，每行都是该接口对应的具体实现类的全限定名.
+4.ConfigurableApplicationContext.getBeanFactory().registerSingleton(beanName, obj);
+	语句：ConfigurableApplicationContext.getBeanFactory().registerSingleton(beanName, obj);
+	描述：动态注册单例，不过实例要事先自己new
+5.ApplicationContextAware
+	语句：ApplicationContextAware
+	描述：实现该接口的类，可以在spring容器初始化的时候调用setApplicationContext方法，从而获得ApplicationContext中的所有bean
+6.DisposableBean、InitializingBean
+	语句：DisposableBean、InitializingBean
+	描述：接口实现初始化方法和销毁前操作主要有下面３种方法：	
+　		6.1 通过@PostConstruct 和 @PreDestroy 方法 实现初始化和销毁bean之前进行的操作;
+　		6.2 通过 在xml中定义init-method 和  destory-method方法;
+　		6.3 通过bean实现InitializingBean和 DisposableBean接口;
+7.@FunctionalInterface
+	语句：@FunctionalInterface
+	描述：该注解不是必须的，如果一个接口符合"函数式接口"定义，那么加不加该注解都没有影响。加上该注解能够更好地让编译器进行检查。如果编写的不是函数式接口，但是加上了@FunctionInterface，那么编译器会报错。“函数式接口”是指仅仅只包含一个抽象方法的接口。
+8.RequestContextHolder
+	语句：RequestAttributes requestAttributes = RequestContextHolder.currentRequestAttributes();        
+		 HttpServletRequest request = requestAttributes == null ? null : ((ServletRequestAttributes) requestAttributes).getRequest();
+	描述：持有上下文的Request容器。例如在Service中获取request、response。直接从Controller太粗暴了，可以使用该方法获取。
