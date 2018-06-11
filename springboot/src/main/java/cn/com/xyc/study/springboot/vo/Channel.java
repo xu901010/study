@@ -1,7 +1,11 @@
 package cn.com.xyc.study.springboot.vo;
 
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class Channel {
     private Integer id;
+    @JsonProperty("ppp")
     private String name;
 
     public void setId(Integer id) {

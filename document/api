@@ -26,3 +26,6 @@
 	语句：RequestAttributes requestAttributes = RequestContextHolder.currentRequestAttributes();        
 		 HttpServletRequest request = requestAttributes == null ? null : ((ServletRequestAttributes) requestAttributes).getRequest();
 	描述：持有上下文的Request容器。例如在Service中获取request、response。直接从Controller太粗暴了，可以使用该方法获取。
+9.SpringBoot项目启动时加载
+	语句：实现ApplicationRunner和CommandLineRunner
+	描述：这两种方法提供的目的是为了满足，在项目启动的时候立刻执行某些方法。我们可以通过实现ApplicationRunner和CommandLineRunner，来实现，他们都是在SpringApplication执行之后开始执行的。CommandLineRunner接口可以用来接收字符串数组的命令行参数，ApplicationRunner 是使用ApplicationArguments 用来接收参数的。
