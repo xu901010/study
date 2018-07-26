@@ -1,0 +1,733 @@
+一、基本操作
+1.启动数据库：mongod --dbpath ...
+2.启动客户端：mongo 127.0.0.1:27017
+3.创建数据库：
+	use [databaseName] ：如果什么也不干离开的话，这个空数据库会被删除
+4.查看所有数据库
+	show dbs
+5.给指定数据库添加集合并且添加记录
+	db.[documentname].insert({...})
+6.查看数据库中所有的文档
+	show collections
+7.查询指定文档的数据
+	查询所有db.[documentName].find()
+	查询第一条数据db.[documentName].findOne()
+8.更新文档数据
+	db.[documentName].update({查询条件},{更新内容})
+	例子：
+	db.persons.update({name:"extjs4.0"},{$set:{name:"extjs4.1"}})
+	或
+	var p = db.persons.findOne();
+	db.persons.update(p,{name:"test"}) //更新覆盖效果
+	或
+	db.persons.update(p,{$set:{age:23}}) //有追加效果
+9.删除文档中的数据
+	db.[documentName].remove({...})
+	例子：db.persons.remove({name:"uspcat"})
+10.删除库中的集合
+	db.[documentName].drop
+11.删除数据库
+	db.dropDatabase()
+12.Shell的help
+	里面有所有的shell可以完成的命令帮助
+	全局的help数据库相关的db.help()集合相关的db.[documentName].help()
+13.mongoDB的API
+	http://api.mongodb.com/js/
+14.数据库和集合的命名规范
+	不能是空字符串
+	不得含有' '(空格)、,、$、/、\、和\O（空字符）
+	应全部小写
+	最多64个字节
+	数据库名不能与现有系统保留库同名，如admin,local及config
+	这样的集合名字是合法的：db-text但是不能通过db.[documentName]得到了，要改为db.getCollection(documentName)
+	因为db-text会被当成是减法操作
+15.mongoDB的shell内置javascript引擎可以直接执行js代码
+	function insert(object){
+... db.getCollection("db-text").text.insert(object)
+... }
+16.shell可以用eval
+	db.eval("return 'mongodb'")
+17.BSON是JSON的扩展它先新增了诸如日期、浮点等JSON不支持的数据类型
+	null 用于表示空或者不存在的字段
+	布尔 两个个数值true和false
+	32位和64位整数 Shell中不支持需用到其他高级语言的驱动来完成JS不可使用
+	64位浮点 Shell中使用的数字其实全是这种类型{x:3.142}
+	UTF-8 其实就是字符串类型
+	对象ID 内置默认ID对象{_id:ObjectId()}
+	日期 {x:new Date()}
+	正则 {x:/uspcat/i}
+	Javascrip代码块 {x:function(){...}}
+	undefined 为定义类型注意他和null不是一个类型
+	数组 {gps:[20,56]}
+	内嵌文档 {x:{name:"uspcat"}}
+	二进制 做任意字节的字符串sheel中时无法使用的
+
+
+二、Document
+	1.插入文档
+		db.[documentName].insert({})
+	2.批量插入文档
+		shell这样执行是错误的db.[documentName].insert([{},{}...])
+		shell不支持批量插入
+		想完成批量插入可以用mongo的应用驱动或是shell的for循环
+	3.Save操作
+		save操作和insert操作区别在于当遇到_id相同的情况下，save完成保存操作(变成了更新操作)，insert则会报错
+	4.删除列表中所有数据
+		db.[documentName].remove()
+		集合的本身和索引不会别删除
+	5.根据条件删除
+		db.[documentName].remove({})
+		删除集合text中name等于uspcat的记录
+		db.text.remove({name:"uspcat"})
+	6.小技巧
+		如果想删除一个数据量十分宠大的集合，直接删除该集合并且重新建立索引的办法比直接用remove的效率和高很多
+	7.强硬的文档替换式更新操作
+		db.[documentName].update({查询器},{修改器})
+		强硬的更新会用新的文档代替老的文档
+	8.主键冲突的时候会报错并且停止更新操作
+		因为是强硬替换当替换的文档和已有文档ID冲突的时候则系统会报错
+	9.insertOrUpdate操作
+		目的：查询器查出来数据就执行更新操作，查不到就插入操作
+		做法：db.[documentName].update({查询器}，{修改器},true)
+	10.批量更新操作
+		默认情况下当查询器查询出多条数据的时候默认就修改第一条数据
+		如何实现批量修改
+		db.[documentName].update({查询器},{修改器},false,true)//第四个参数为true表示批量操作
+		例如：db.persons.update({name:3},{$set:{name:"33"}},false,true)
+	11.使用修改器来完成局部更新操作
+		$set  
+			{$set:{field:value}}  {$set:{name:"uspcat"}}
+			db.persons.update({name:"newText"},{$set:{age:27}})
+			它用来指定一个键值对，如果存在键就进行修改不存在则进行添加
+		$inc  
+			{$inc:{field:value}}  ${$inc:{”count“:1}}
+			db.persons.update({age:27},{$inc:{age:1}})
+			只是使用与数字类型，它可以为指定的键对应的数字类型的数值进行加减操作
+		$unset 
+			${$unset:{field:1}}  ${$unset:{"name":1}}
+			db.persons.update({age:28},{$unset:{age:1}})
+			删除指定的键
+		$push 
+			{$push:{field:array}} {$push:{books:"JS"}}
+			db.persons.update({_id:5},{$push:{books:"extjs4"}})
+			db.persons.update({_id:5},{$push:{books:"js"}})
+			1.如果指定的键是数组增追加新的数值
+			2.如果指定的键不是数组则中断当前操作Cannot apply $push/$pushAll modified to non-array
+			3.如果不存在指定的键则创建数组类型的键值对
+		$pushAll  
+			${$pushAll:{field:array}} {$pushAll:{books:["EXISTS","JS"]}
+			可以批量添加数据，新版本没有
+		$addToSet  
+			db.persons.update({_id:5},{$addToSet:{books:"js"}})
+			目标数组存在此项则不操作，不存在此项则加进去
+		$pop 
+			db.persons.update({_id:5},{$pop:{books:1}})
+			从指定数组删除一个值,1删除最后一个数值，-1删除第一个数值
+		@pull
+			db.persons.update({_id:5},{$pull:{books:"mongodb"}})
+			删除一个被指定的数值
+		$pullAll
+			db.persons.update({_id:5},{$pullAll:{books:["js","extjs"]}})
+			一次性删除多个指定的数值
+		$	
+			db.persons.update({"books.type":"JS"},{$set:{"books.$.author":"uspcat"}})
+			1.数组定位器，如果数组有多个数值我们只想对其中一部分进行操作我们就要用到定位器$
+			例如有文档{name:"YFC",age:27,books:[{type:"jS",name:"EXTJS4"},{type:"jS",name:"JQUERY"},{type:"DB",name:"MONGODB"}],要把type等于js的文档增加一个相同的作者author是USPCAT,办法：db.text.update({"books.type":"JS"},{$set:{"books.$.author":"USPCAT"}})
+	12.@addToSet与$each结合完成批量数组更新
+		$each会循环后面的数组把每一个数值进行$addToSet操作
+		db.persons.update({_id:5},{$addToSet:{books:{$each:["JS","DB"]}}})
+	13.存在分配与查询效率
+		当document被创建的时候DB为其分配内存和预留内存当修改操作不超过预留内存的时候则速度非常快反之超过了就要分配新的内存则会消耗时间
+	14.runCommand函数和findAndModify函数
+		runCommand可以执行mongoDB中的特殊函数
+		findAndModify就是特殊函数之一它就是用于返回update或remove后的文档
+		runCommand({"findAndModify":"process",query:{查询器},sort:{排序},new:true,update:{更新器},remove:true}).value
+		p = db.runCommand({
+		... findAndModify:"persons",
+		... query:{name:"333"},
+		... update:{$set:{age:100}},
+		... new:true})
+		p.value
+
+三、Find详解
+	1.指定返回的键
+		db.[documentName].find({条件},{键指定})
+		db.persons.find({},{_id:0,name:1,country:1})  //0表示不展示，1表示展示
+	2.查询条件
+		$lt <  
+		$lte <=
+		$gt >
+		$gte >=
+		$ne !=
+		例如：
+			查询出生年龄在25到27岁之间的学生
+			db.persons.find({age:{$gte:25,$lte:27}},{_id:0,name:1,age:1})
+			查询出所有不是韩国籍的学生的数学成绩
+			db.persons.find({country:{$ne:"Korea"}},{_id:0,m:1,country:1})
+	3.包含或不包含
+		$in或$nin
+		例如：
+			查询国籍是中国或美国的学生信息
+			db.persons.find({country:{$in:["USA","China"]}},{_id:0,country:1})
+			查询国籍不是中国或美国的学生信息
+			db.persons.find({country:{$nin:["USA","China"]}},{_id:0,country:1})
+	4.OR查询
+		$or
+			查询语文成绩大于85或者英语成绩大于90的学生信息
+			db.persons.find({$or:[{c:{$gt:85}},{e:{$gt:90}}]},{_id:0,e:1,c:1,name:1})
+	5.Null
+		把中国国籍的学生上增加新的键sex
+		db.persons.find({sex:{$in:[null]}},{_id:0,name:1,sex:1})
+	6.正则查询
+		查询出名字中存在"li"的学生的信息
+		db.persons.find({name:/li/i},{_id:0,name:1,sex:1})
+	7.$not的使用
+		$not可以用到任何地方进行取反操作
+		@not和$nin的区别是$not可以用在任何地方而$nin是用到集合上
+		查询出名字中不存在”li“的学生信息
+		db.persons.find({name:{$not:/li/}},{_id:0,name:1,sex:1})
+	8.数组查询$all和index应用
+		查询喜欢看MONGOD和JS的学生
+		db.persons.find({books:{$all:["JS","MONGODB"]}},{_id:0,name:1,sex:1,books:1})
+		查询第二本书是JAVA的学生信息
+		db.persons.find({"books.1":"JAVA"},{_id:0,name:1,sex:1,books:1})
+	9.查询指定长度数组$size它不能与比较查询符一起使用(这是弊端)
+		查询出喜欢的书籍数量是4本的学生
+		db.persons.find({books:{$size:4}},{_id:0,books:1})
+		查询出喜欢的书籍数量大于3本的学生
+			1）增加字段size
+			db.persons.update({},{$set:{size:4}},false,true)
+			2)改变书籍的更新方式，每次增加书籍的时候size增加1，删除减1
+			db.persons.update({name:"jim"},{$push:{books:"ORACLE"},$inc:{size:1}})
+			3)利用$gt查询
+			db.persons.find({size:{$gt:4}},{name:1,books:1})
+	10.利用shell查询出jim喜欢看的书的数量
+		var persons = db.persons.find({name:"jim"})
+		while(persons.hasNext()){
+			obj = persons.next();
+			print(obj.books.length);
+		 }
+	11.$slice操作符返回文档中指定数组的内部值
+		查询出jim书架中第2~4本书
+		db.persons.find({name:"jim"},{_id:0,books:{$slice:[1,3]}})
+		查询出最后一本书
+		db.persons.find({name:"jim"},{books:{$slice:-1}})
+	12.文档查询
+		查询出在K上过学的学生
+		db.persons.find({school:{school:"K",score:"A"}})//问题在于查询在K上过学的还要带着score
+		db.persons.find({"school.school":"K"},{_id:0,name:1,school:1})
+		db.persons.find({"school.school":"K","school.score":"A"},{_id:0,name:1,school:1}) //循环有一个匹配就返回，有问题
+		正常做法单条条件组查询$elemMatch
+		db.persons.find({school:{$elemMatch:{school:"K",score:"A"}}},{_id:0,name:1,school:1})//满足所有条件返回
+	13.$where
+		查询年龄大于22风，喜欢看C++，在K学校上过学的学生
+		复杂的查询我们就可以用$where因为他是万能的，但是我们要尽量避免少使用它因为他会有性能的代价
+		db.persons.find({"$where":function(){
+			var books = this.books;
+			var school = this.school;
+			if (this.age > 22) {
+				for (var i = 0; i < books.length; i++) {
+					if (books[i] == "C++") {
+						if (school) {
+							for (var j = 0; j < school.length; j++) {
+								if (school[j].school == "K") {
+									return true;
+								}
+							}
+							break;
+						}
+					}
+				}
+			}
+		}})
+四、分页与排序
+	1.查询出persons文档中前5条数据
+		db.persons.find({},{_id:0,name:1}).limit(5)
+	1.查询出persons文档中5~10条的数据
+		db.persons.find({},{_id:0,name:1}).skip(5)
+		skip有性能问题，没有特殊情况可以换种思路，对文档进行重新解构设计，每次查询操作的时候前后台传值全要把上次的
+		最后一个文档的日期保存下来，然后使用db.persons.find({date:{$gt:"日期数值"}}).limit(3)
+		一般使用时很少有用户会翻每一页的数据，其实可以直接使用limit+skip完成，但如果存在频繁翻每一页的数据时，可以考虑使用date方式
+	2.Sort返回按照年龄排序的数据[1,-1]
+		db.persons.find({},{_id:0,name:1,age:1}).skip(2).sort({age:1})
+		注意：mongodb的key可以存不同的类型的数据排序就也有优先级
+		最小值、null、数字、字符串、对象/文档、数组、二进制、对象ID、布尔、日期、时间戳-》正则-》最大值
+五、游标
+	1.利用游标遍历查询数据
+	var persons = db.persons.find({name:"jim"})
+		while(persons.hasNext()){
+			obj = persons.next();
+			print(obj.books.length);
+		 }
+	2.游标消毁条件
+		1）客户端发来信息叫它销毁
+		2）游标迭代完毕
+		3）默认游标超过10分钟没用也会被消除
+	3.查询快照
+		快照后就会针对不变的集合进行游标运动了，使用方法：
+		db.persons.find({$query:{name:"jim"},$snapshot:true})
+		高级查询选项
+		$query
+		$orderby 
+		$maxscan integer最多扫描的文档数
+		$min doc查询开始
+		$max doc查询结束
+		$hint doc使用哪个索引
+		$explain:boolean 统计
+		$snapshot:boolean 一致快照
+	4.为什么要用查询快照
+		假如在一个文档中多个文档，当需要对这些文档遍历时，修改某个文档内容，导致内存变大，mongodb默认会自动扩容，导致大的文档放到了后面,从而造成重复读的情况
+六、索引详讲
+	1.检验查询性能
+		for (var i = 0; i < 20000; i++) {
+			db.books.insert({number:i,name:i+"book"})
+		}
+		var start = new Date()
+		db.books.find({number:65871})
+		var end = new Date()
+		end-start
+	2.
+		db.books.ensureIndex({number:1})
+	3.再执行第一步的代码可以看出有数据级
+	4.索引使用需要注意的地方
+		1）创建索引的时候注意1是正序创建索引-1是倒序创建索引
+		2）索引的创建在提高查询性能的同时会影响插入的性能，对于经常查询少插入的文档可以考虑用索引
+		3）符合索引要注意索引的先后顺序
+		4）每个键全建立索引不一定就能提高性能，索引不是万能的
+		5）在做排序工作的时候如果是超大数据量也可以考虑加上索引用来提高排序的性能
+	5.索引的名称
+		1）索引名称后面_1表示正序索引，如果是_-1表示倒序索引
+		1）创建索引同时指定索引的名字
+		db.books.ensureIndex({name:-1},{name:"bookname"})
+	6.唯一索引
+		如何解决文档books不能插入重复的数值
+		建立唯一索引：db.books.ensureIndex({name:1},{unique:true})
+	7.剔出重复值
+		如果建立唯一索引之前已经有了重复值如何处理
+		db.books.ensureIndex({name:1},{unique:true,dropDups:true})(有问题，测试版本不好用)
+	8.Hint
+		如何强制查询使用指定的索引
+		db.books.find({name:"1book",number:1}).hint({name:-1})
+	9.Explain
+		如何详细查看本次查询使用哪个索引和查询数据的状态信息
+		db.books.find({name:"1book"}).explain()
+		
+七、索引管理
+	1.查看索引信息
+		db.books.getIndexes()
+	2.后台执行
+		执行创建索引的过程会暂时锁表问题如何解决
+		为了不影响查询我们可以叫索引的创建过程在后台
+		db.books.ensureIndex({number:1},{background:true})
+	3.删除索引
+		批量和精确删除索引
+		db.runCommand({dropIndexes:"books",index:"name_1"})
+		db.runCommand({dropIndexes:"books",index:"*"})
+八、空间索引
+	mongoDB提供强大的空间索引可以查询出一定范围的地理坐标
+			1）查询出距离点(70,180)最近的3个点
+				添加2D索引
+				db.map.ensureIndex({gis:"2d"},{min:-1,max:201})
+				默认会建立一个[-180,180]之间的2D索引，查询点(70,180)最近的3个点
+				db.map.find({gis:{$near:[70,180]}},{_id:0}).limit(3)
+			2）查询以点(50,50)和点(190,190)为对角线的正方形中的所有的点
+				db.map.find({gis:{$within:{$box:[[50,50],[190,190]]}}},{_id:0})
+			3）查询出以圆心为(56,80)半径为50规则下的圆心面积中的点
+				db.map.find({gis:{$within:{$center:[[56,80],50]}}},{_id:0})
+九、Count+Distinct+Group
+	1.Count
+		查询persons中美国学生的人数
+		db.persons.find({country:"USA"}).count()
+	2.Distinct
+		查询出persons中一共有多少个国家
+		db.runCommand({distinct:"persons",key:"country"})
+		db.runCommand({distinct:"persons",key:"country"}).values
+	3.Group
+		语法：
+			db.runCommand({group:{
+				ns:集合名字,
+				Key:分组的键对象,
+				Initial:初始化累加器,
+				$reduce:组分解器,
+				Condition:条件,
+				Finalize:组完成器
+			}})
+			分组首先会按照key进行分组，每组的每一个文档全要执行$reduce的方法，它接收2个参数一个是组每条记录，一个是累加器数据
+			查出persons中每个国家学生数学成绩最好的学生信息(必须在90以上)
+			db.runCommand({
+				group:{
+					ns:"persons",
+					key:{"country":true},
+					initial:{m:0},
+					$reduce:function(doc,prev){
+						if(doc.m>prev.m){
+							prev.m = doc.m;
+							prev.name=doc.name;
+							prev.country=doc.country;
+						}
+					},
+					condition:{m:{$gt:90}}
+				}
+			})
+			在上例基础上把个人的信息链接起来作为一个描述赋值到m上
+			db.runCommand({
+				group:{
+					ns:"persons",
+					key:{"country":true},
+					initial:{m:0},
+					$reduce:function(doc,prev){
+						if(doc.m>prev.m){
+							prev.m = doc.m;
+							prev.name=doc.name;
+							prev.country=doc.country;
+						}
+					},
+					finalize:function(prev){
+						prev.m=prev.name+" Math scores "+prev.m
+					},
+					condition:{m:{$gt:90}}
+				}
+			})
+	4.用函数格式分组
+		如果集合中出现键Country和counTry同时存在那分组有点麻烦这要如何解决
+		db.runCommand({
+				group:{
+					ns:"persons",
+					$keyf:function(doc){
+						if(doc.counTry){
+							return {country:doc.counTry}
+						}else{
+							return {country:doc.country}
+						}
+					},
+					initial:{m:0},
+					$reduce:function(doc,prev){
+						if(doc.m>prev.m){
+							prev.m = doc.m;
+							prev.name=doc.name;
+							if(doc.country){
+								prev.country=doc.country;
+							}else{
+								prev.country=doc.counTry;
+							}
+							
+						}
+					},
+					condition:{m:{$gt:90}}
+				}
+			})
+十、数据库命令操作
+	1.命令执行器runCommand
+		用命令执行完成一次删除表操作
+			db.runCommand({drop:"test"})
+	2.如何查询mongoDB为我们提供的命令
+		1）在shell中执行db.listCommans()
+		2) 访问网址
+	3.常用命令举例
+		1）查询服务器版本号和主机操作系统
+		db.runCommand({buildInfo:1})
+		2）查询执行集合的详细信息，大小，空间，索引等。。。
+		db.runCommand({collStats:"persons"})
+		3）查看操作本集合最后一次错误信息
+		db.runCommand({getLastError:"persons"})
+十一、固定集合特性
+	1.固定特性
+		固定集合默认是没有索引的就算是_id也是没有索引的
+		由于不需分配新的空间他的插入速度是非常快的
+		固定集合的顺序是确定的导致查询速度是非常快的
+		最适合的应用就是日志管理
+	2.创建固定集合
+		创建一个新的固定集合要求大小是100个字节，可以存储文档10个
+		db.createCollection("mycoll",{size:100,capped:true,max:10})
+		把一个普通集合转换成固定集合
+		db.runCommand({convertToCapped:"persons",size:100000})
+	3.反向排序，默认是插入顺序排序
+		查询固定集合mycoll并且反向排序
+		db.mycoll.find().sort({$natural:-1})
+	4.尾部游标，可惜shell不支持java和php等驱动是支持的
+		尾部游标概念
+			这是一个特殊的只能用到固定集合和身上的游标，它在没有结果的时候也不会自动销毁，它是一直等待结果的到来
+十二、GridFS文件系统
+	1.概念：
+		GridFS是mongoDB自带的文件系统它用二进制的形式存储文件，大型文件系统的绝大多数特性GridFS全可以完成
+	2.利用的工具
+		mongofiles.exe
+	3.使用GridFS
+		查看GridFS的所有功能
+			mongofiles
+		上传一个文件
+			mongofiles -d foobar -l "/Users/xuyuancheng/Desktop/待做" put "filetest"
+		查看GridFS的文件存储状态
+			利用工具查看
+			集合查看
+				db.fs.chunks.find()和db.fs.files.find()存储了文件系统的所有文件信息
+			查看文件内容
+				mongofiles -d foobar get ”filetest“  //shell无法打开
+			查看所有文件
+				mongofiles -d foobar list
+			删除已经存在的文件
+				mongofiles -d foobar delete 'filetest1'
+十三、补充-》服务器端脚本
+	1.eval
+		服务器端运行eval
+			db.eval("function(name){return name;}","uspcat")
+	2.javascript的存储
+			在服务器上保存js变量作为作局变量供每个javascript调用
+				1）把变量加载到特殊集合system.js中
+					db.system.js.insert({_id:"name",value:"uspcat"})
+				2)调用
+					db.eval("return name")
+			system.js相当于存储过程，因为value不单单可以写变量还可以写函数体也就是javascript代码
+				db.system.js.insert({_id:"showName",value:function(){return 123;}})
+				db.eval("showName()")
+十四、mongoDB启动配置详讲
+	1.启动项 mongod --help
+		--dbpath ：指定数据库的目录，默认在window下是c:\data\db\
+		--port：指定服务器监听的端口号，默认是27017
+		--fork：用守护进程的方式启动mongoDB
+		--logpath：指定日志的输出路径，默认是控制台
+		--config：指定启动项用文件的路径
+		--auth：用安全认证方式启动数据库
+		1）利用config配置文件来启动数据库改变端口为8888
+			mongodb.conf文件
+			dbpath = /Users/xuyuancheng/mysoft/mongodbDATA
+			port = 8888
+			启动
+			mongod --config mongodb.conf
+		2）停止服务
+			admin数据库命令关闭数据
+				use admin
+				db.shutdownServer()
+十五、导出、导入运行时备份
+		1.导出数据(中断其他操作)
+			利用mongoexport
+				-d 指明使用的库
+				-c指明要导出的表
+				-o指明要导出的文件名
+				-csv制定导出的csv格式
+				-q过滤导出
+				--type<json|csv|tsv>
+			1）把数据库foobar中的persons导出
+				mongoexport -d foobar -c persons -o /Users/xuyuancheng/os/persons.json
+			2）导出其他主机数据库的文档
+				mongoexport --host 127.0.0.1 --port 8888 
+		2.导入数据(中断其它操作)
+			mongoimport --db foobar --collection persons --file /Users/xuyuancheng/os/persons.json
+		3.运行时备份mongodump
+			运行时备份会有漏数据的情况即在内存的中数据不会被备份
+			1)导出127.0.0.1服务下27017下的foobar数据库
+			mongodump --host 127.0.0.1 --port 27017 -d foobar -o /Users/xuyuancheng/os/foobar
+		4.运行时恢复mongorestore
+			1）删除原本的数据库用刚才导出的数据库恢复
+				mongorestore -d foobar  /Users/xuyuancheng/os/foobar/foobar
+		5.懒人备份
+			mongoDB是文件数据库这其实就可以用拷贝文件的方法进行备份
+
+十六、Fsync锁，数据修复
+	mongo中包含缓冲池、数据库。读写操作针对缓冲池，然后缓冲池再保存到真正的数据库当中。运行时备份实际上只备份了数据库中的数据，缓冲池当中的数据不会备份。
+	上锁可以叫缓冲池的数据全部进到数据库，这在数据库备份的时候很有意义
+	1.上锁和解锁
+		上锁：db.runCommand({fsync:1,lock:1})
+		解锁：db.currentOp()
+	2.数据修复
+		当停电等不可逆转灾难来临的时候，由于mongodb的存储结构导致会产生垃圾数据，在数据恢复以后依然存在，这时数据库提供一个自我修复的能力，使用起来很简单：db.repairDatabase()//比较浪费性能
+十七、用户管理、安全认证
+	1.添加用户
+		db.createUser({user:"xym",pwd:"123",roles:[{role:"readWrite",db:"foobar"}]})
+	2.服务器开启认证
+		mongod --auth
+	3.登录
+		use foobar;
+		db.auth("xym","123")
+	4.非admin数据库的用户不能使用数据库命令
+	5.删除用户
+		use foobar
+		db.dropUser("xym")
+十八、主从复制
+	在数据库集群中要明确的知道谁是主服务器，主服务器只有一台
+	从服务器要知道自己的数据源也就是对应的主服务器是谁
+	--master用来确定主服务器，--slave和--source用来表示从服务器
+
+	主从复制实践
+		主服务器：
+			dbpath= 数据库地址
+			port= 主服务端口
+			bind_ip	主服务器所在服务器
+			master=true 	确定我是主服务器
+		从服务器：
+			dbpath=
+			port=
+			bind_ip=
+			source= localhost:9090 主服务器IP端口
+			slave = true 我是从服务器
+	主从复制其它配置项
+		--only 从节点-》指定复制某个数据库，默认是复制全部数据库
+		--slavedelay 从节点-》设置主数据库同步数据的延迟(单位是秒)
+		--fastsync 从节点-》以主数据库的节点快照为节点启动从数据库
+		--autoresync 从节点-》如果不同步则从新同步数据库
+		--oplogSize 主节点-》设置oplog的大小(主节点操作记录存储到local的oplog中) 从节点复制时是执行日志文件，在硬件条件允许下可以设置大些
+	利用shell动态添加和删除从节点
+		从节点中关于主节点的信息全部存储到local的sources的集合中，我们只要对集合进行操作就可以动态操作主从关系
+		在从服务器操作：
+			use local
+			db.sources.find()
+			挂接主节点
+			db.sources.insert({"host":"127.0.0.1:8888"})
+			移除挂接主节点
+			db.source.remove({"host":"127.0.0.1:8888"})
+
+十九、副本集
+	1.三台服务器A、B、C，A为活跃服务器，B、C为备份服务器。当A出现故障时，这时候集群根据权重算法推选出B为活跃的数据库。当A恢复后它自动又会变为备份数据库
+	2.副本集实践
+		A：
+			dbpath=
+			port=1111
+			bind_ip=
+			replSet=child/127.0.0.1:2222  设定同伴
+
+		B:
+			dbpath=
+			port=2222
+			bind_ip=
+			replSet=child/127.0.0.1:3333
+
+		C:
+			dbpath=
+			port=3333
+			bind_ip=
+			replSet=child/127.0.0.1:1111
+		初始化
+			use admin
+			db.runCommand({"replSetInitiate":{
+					"_id":"child",
+					"members":[{
+						"_id":1,
+						"host":"127.0.0.1:1111"
+					},{
+						"_id":2,
+						"host":"127.0.0.1:2222"
+					},{
+						"_id":3,
+						"host":"127.0.0.1:3333"
+					}]
+			}})
+			rs.status()//查看副本集状态 只能活跃服务器可以查看
+	3.节点和初始化高级参数
+		standard常规节点：参与投票有可能成为活跃节点
+		passive副本节点：参数投票，但是不能成为活跃节点
+		arbiter仲裁节点：只是参与投票不复制节点也不能成为活跃节点
+	4.高级参数
+		Priority 0到1000之间，0代表是副本节点，1到1000是常规节点
+		arbiterOnly:true 仲裁节点
+		用法：
+			{"members":[
+				{
+					"_id":1,
+					"host":"127.0.0.1:1111",
+					arbiterOnly:true
+				}
+			]}
+	5.优先级相同时候仲裁组建的规则
+		它会看更新时间 ，优先选择更新时间最近的。
+	6.读写分离操作-》扩展读
+		1.一般情况下作为副本的节点是不能进行数据库读操作的，但是在读取密集型的系统中读写分离是十分必要的
+		2.设置读写分离
+			slaveOkay:true
+			很遗憾它在shell中无法演示，这个特性是被写到mongoDB的驱动程序中的，在java和node等其他语言中可以完成
+	7.oplog
+		它是被存储在本地数据库local中的，它的每一个文档保证这一节点操作，如果想故障恢复可以将oplog尽量设置大一些用来保存更多的操作的信息
+		改变oplog大小
+		主库 --master --oplogSize 1000000
+	设置从或备份服务器读取 使用 rs.slaveOk()
+
+二十、分片
+	1.什么时候用到分片
+		1）机器的磁盘空间不足
+		2）单个的mongoDB服务器已经不能满足大量的插入操作
+		3）想通过把大数据放到内存中来提高性能
+	2.分片步骤
+		1）创建配置服务器
+			dbpath= /Users/xuyuancheng/mongo/config
+			port=2000
+			bind_ip=107.0.0.1
+
+			mongod --config 配置服务器.conf
+		2)创建路由服务器
+			mongos --port 1000 --configdb 127.0.0.1:2000
+		3)创建分片数据库1
+			dbpath= /Users/xuyuancheng/mongo/config
+			port=8081
+			bind_ip=107.0.0.1
+		4)创建分片数据库2
+			dbpath= /Users/xuyuancheng/mongo/config
+			port=8082
+			bind_ip=107.0.0.1
+		5）利用路由为集群添加分片(允许本地访问)
+			db.runCommand({addshard:"127.0.0.1:8081",allowLocal:true})
+			db.runCommand({addshard:"127.0.0.1:8082",allowLocal:true})
+			切记之前不能使用任何数据库操作语句
+		6）打开数据分片功能，为数据库foobar打开分片功能
+			在路由服务器上
+			use foobar
+			db.foobar.insert({name:"1"})
+			db.runCommand({enablesharding:"foobar"})
+		7)对集合进行分片
+			在路由服务器上
+			db.runCommand({shardcollection:"foobar.bar",key:{_id:1}})
+		8)利用大数据量进行测试(400000条)
+		在路由服务器上
+			测试数据
+			user foobar
+			function add(){
+				var i =0;
+				for(;i<200000;i++){
+					db.bar.insert({"age":i+10,"name":"jim"})
+				}
+			}
+			add()
+			add()
+			function add2(){
+				var i=0;
+				for(;i<200000;i++){
+					db.bar.insert({"age":12,"name":"tom"+1})
+				}
+			}
+			add()
+			function add3(){
+				var i=0;
+				for(;i<200000;i++){
+					db.bar.insert({"age":12,"name":"lili"+1})
+				}
+			}
+			add()
+			db.bar.find().count()
+	3.查看配置库对于分片服务器的配置存储
+		db.printShardingStatus()
+	4.查看集群对bar的自动分片机制配置信息
+		use config
+		db.shards.find()
+		配置库： db.mongos.find
+
+
+十一、
+	1.mongostat是对mongoDB集群负载情况的一个快照，可以查看每秒更新量、加锁时间占操作时间百分比、缺页中断数量、索引miss的数量、客户端查询排队长度(读|写)、当前连接数、活跃客户端数量(读|写)等。
+	2.db.stats() db.users.stats()  :
+	3.检查索引构建过程
+		db.currentOp():或查看日志文件
+	4.后台构建索引：在构建索引时，DB会使用锁，此时无法进行读写操作。可以使用后台构建索引。它允许应用程序读/写操作
+		db.user.createIndex({name:1},{background:true})
+	5.后台构建索引本身还是会给服务器千万压力，此时可以使用离线索引，就是在另外一台服务器上进行索引。它复制主服务器的数据。
+	6.碎片整理：
+		如果应用对于数据库大量执行更新和删除，可能会产生许多索引碎片，mongodb本身会调整一些空间，但对于高删除空间还是不足。这时候可以考虑重建索引。db.values.reIndex().重建索引在重建期间会占用写入锁，导致mongodb实例无法使用。重建索引最后脱机进行。
+	7.慢查询
+		1)查看日志
+		2）使用mongod --slowms 50参数来记录慢查询的日志，然后使用grep -E '[0-9]+ms' mongod.log查询
+		3）proofiling分析器
+			use foobar
+			db.setProfilingLevel(2,1)  //2最详细级别，1记录耗时，0禁用分析器
+			监控结果保存在system.profile中
+			db.system.profile.find()查看
+		7)执行计划：
+			db.system.profile.find().skip(3).limit(1).explain("executionStats")
+
+	8.

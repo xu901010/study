@@ -40,7 +40,7 @@ public class Sender {
             message.setText("我是消息内容,id为：" + i);
             //producer.send(message);
             //目的地、消息、是否持久化、优先级(0-9 0-4表示普通消息 5-9表示加急 默认为4)
-            producer.send(destination,message,DeliveryMode.NON_PERSISTENT,i,1000*60*2);
+            producer.send(destination,message,DeliveryMode.PERSISTENT,i,1000*60*2);
         }
         //使用事务提交
         session.commit();

@@ -1,0 +1,8 @@
+spring:
+  application:
+    name: licensingservice #指定许可服务名称，以便spring cloud配置客户端知道正在查找哪个服务
+  profiles:
+    active: default #指定服务应该运行的默认配置文件。配置映射到环境
+  cloud:
+    config:
+      uri: http://localhost:8888
